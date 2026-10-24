@@ -11,7 +11,7 @@ This document explains the purpose of each directory and where team members shou
 ```text
 travio/
 ├── backend/
-│   ├── app/
+│   └── app/
 │   │   ├── main.py
 │   │   ├── api/
 │   │   │   ├── router.py
@@ -43,6 +43,7 @@ travio/
 │   ├── folder-guide.md
 │   ├── user-stories.md
 │   └── feature-plan.md
+├── requirements.txt
 ├── .env.example
 ├── .gitignore
 └── README.md
@@ -68,7 +69,7 @@ Contains the main Python backend application and its business logic.
 - **`booking/`** — Manages booking workflows, booking status, and user approval before booking-related actions.
 - **`core/`** — Contains application-wide configuration and shared infrastructure, such as environment settings.
 
-### `backend/requirements.txt`
+### `requirements.txt`
 
 Lists the Python dependencies needed to run the backend.
 
