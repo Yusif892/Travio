@@ -2,7 +2,7 @@
 
 ## 1. Project Overview
 
-TRAVIO is an AI-powered travel-planning system built with Python, FastAPI, LangGraph, and Supabase.
+TRAVIO is an AI-powered travel-planning system built with Python, FastAPI, LangGraph, and PostgreSQL.
 
 This document explains the purpose of each directory and where team members should place their code.
 
@@ -28,7 +28,7 @@ travio/
 │   │   └── core/
 │   └── requirements.txt
 ├── frontend/
-├── supabase/
+├── db/
 │   ├── migrations/
 │   └── seed.sql
 ├── tests/
@@ -64,7 +64,7 @@ Contains the main Python backend application and its business logic.
 - **`providers/mocks/`** — Contains mock providers for development and testing when real APIs are unavailable.
 - **`planner/`** — Builds and updates travel itineraries, including schedules, budget calculations, and activity ordering.
 - **`verification/`** — Validates travel options and itineraries against requirements, constraints, and available evidence.
-- **`persistence/`** — Contains the code responsible for saving, retrieving, and updating application data in Supabase.
+- **`persistence/`** — Contains the code responsible for saving, retrieving, and updating application data in PostgreSQL.
 - **`booking/`** — Manages booking workflows, booking status, and user approval before booking-related actions.
 - **`core/`** — Contains application-wide configuration and shared infrastructure, such as environment settings.
 
@@ -82,21 +82,21 @@ The frontend communicates with the backend API to submit travel requests, displa
 
 The frontend is a shared project responsibility. Team members should coordinate UI changes with the backend API contracts.
 
-## 5. Database and Supabase
+## 5. Database and PostgreSQL
 
-### `supabase/`
+### `db/`
 
-Contains database setup and seed data for Supabase.
+Contains database setup and seed data for PostgreSQL.
 
-- **`migrations/`** — SQL migration files for creating or updating database tables, relationships, indexes, and database policies.
+- **`migrations/`** — SQL migration files for creating or updating database tables, relationships, indexes, and constraints.
 - **`seed.sql`** — Initial or sample data used for development and testing.
 
-### `persistence/` vs. `supabase/migrations/`
+### `persistence/` vs. `db/migrations/`
 
 These directories have different responsibilities:
 
 - `persistence/` contains Python code that interacts with the database.
-- `supabase/migrations/` contains SQL scripts that define or change the database structure.
+- `db/migrations/` contains SQL scripts that define or change the database structure.
 
 For example, a Python repository might save a trip, while a migration creates the table where that trip is stored.
 
