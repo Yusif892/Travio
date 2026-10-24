@@ -31,8 +31,7 @@ ENV/
 # Databases and local runtime
 *.db
 *.sqlite3
-supabase/.temp/
-supabase/.branches/
+db/.temp/
 
 # Logs
 *.log
