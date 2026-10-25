@@ -15,6 +15,7 @@ class TravelState(TypedDict, total=False):
     messages: Annotated[list[dict[str, str]], add]
     trip_request: dict[str, Any]
     tasks: list[dict[str, Any]]
+    task_updates: Annotated[list[dict[str, Any]], add]
     transport_options: list[dict[str, Any]]
     lodging_options: list[dict[str, Any]]
     experience_options: list[dict[str, Any]]
