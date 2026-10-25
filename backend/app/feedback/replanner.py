@@ -26,6 +26,7 @@ from app.planner.models import (
 )
 from app.planner.planning_input import PlanningInput
 from app.planner.utils import get_value, to_geo
+from app.planner.validation import validate_planning_input
 
 STOPWORDS = {
     "the", "a", "an", "and", "or", "to", "for", "of", "my", "please", "this",
@@ -56,6 +57,7 @@ class Replanner:
         planning: PlanningInput,
         intent: FeedbackIntent,
     ) -> ReplanResult:
+        validate_planning_input(planning)
         affected = route_feedback(intent)
         if intent.ambiguous:
             return self._unchanged(
