@@ -1,13 +1,13 @@
-from enum import StrEnum
+from enum import Enum
 
 
-class TaskAgent(StrEnum):
+class TaskAgent(str, Enum):
     TRANSPORTATION = "transportation"
     ACCOMMODATION = "accommodation"
     EXPERIENCES = "experiences"
 
 
-class TaskStatus(StrEnum):
+class TaskStatus(str, Enum):
     PENDING = "pending"
     RUNNING = "running"
     SUCCEEDED = "succeeded"
@@ -15,7 +15,7 @@ class TaskStatus(StrEnum):
     SKIPPED = "skipped"
 
 
-class IntakeStatus(StrEnum):
+class IntakeStatus(str, Enum):
     CLARIFICATION_NEEDED = "clarification_needed"
     REJECTED = "rejected"
     ACCEPTED = "accepted"
