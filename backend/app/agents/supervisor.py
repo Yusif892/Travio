@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-=======
 """Schema-validated task decomposition for the planning workflow."""
 from collections.abc import Callable
 
@@ -53,4 +51,3 @@ class Supervisor:
         if not domains and any(word in text for word in ("complete", "full", "plan", "trip", "travel", "itinerary")):
             domains = list(TaskAgent)
         return [{"id": agent.value, "agent": agent, "parameters": {}} for agent in domains]
->>>>>>> f7aa50a (feat: complete supervisor graph routing and retry handling)

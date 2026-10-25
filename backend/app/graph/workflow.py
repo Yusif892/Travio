@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-=======
 """Executable LangGraph assembly for the Supervisor planning stage."""
 from typing import Any
 
@@ -89,4 +87,3 @@ async def run_planning_graph(record: TripRecord, orchestrator: PlanningOrchestra
     record.experience_options = final.get("experience_options", [])
     record.errors = [WorkflowError.model_validate(error) for error in final.get("errors", [])]
     return record
->>>>>>> f7aa50a (feat: complete supervisor graph routing and retry handling)
