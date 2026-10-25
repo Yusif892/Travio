@@ -31,6 +31,7 @@ from app.planner.models import (
 )
 from app.planner.planning_input import PlanningInput
 from app.planner.utils import enum_value, get_value, to_geo
+from app.planner.validation import validate_planning_input
 
 
 @dataclass(slots=True)
@@ -366,6 +367,7 @@ def _build_activity(
 
 
 def build_schedule(planning: PlanningInput) -> ScheduleResult:
+    validate_planning_input(planning)
     trip = planning.trip
     start_date = get_value(trip, "start_date")
     end_date = get_value(trip, "end_date")
