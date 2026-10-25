@@ -2,7 +2,7 @@ import asyncio
 from datetime import date
 from decimal import Decimal
 
-from app.agents.supervisor import Supervisor
+from app.agents.supervisor import Supervisor, SupervisorOutputError
 from app.domain.enums import TaskAgent, TaskStatus
 from app.domain.schemas import TripRecord, TripRequest
 from app.services.orchestration import PlanningOrchestrator
@@ -40,12 +40,43 @@ def test_full_trip_fans_out_and_preserves_success_when_one_fails():
 
 def test_retry_only_reinvokes_failed_task():
     calls = []
-    async def transport(_: dict): calls.append("transport"); return []
+    async def transport(_: dict): calls.append("transport"); return [{"id": "transport-1"}]
     async def lodging(_: dict): calls.append("lodging"); return []
     agents = {TaskAgent.TRANSPORTATION: transport, TaskAgent.ACCOMMODATION: lodging, TaskAgent.EXPERIENCES: lodging}
     trip = record("find flights and hotel")
     service = PlanningOrchestrator(agents=agents)
     asyncio.run(service.run(trip))
-    trip.tasks[1].status = TaskStatus.FAILED
     asyncio.run(service.run(trip, retry_only=True))
+    assert calls == ["transport", "lodging", "lodging"]
+
+
+def test_invalid_supervisor_output_retries_once_then_fails_safely():
+    calls = 0
+    def malformed(_, __):
+        nonlocal calls
+        calls += 1
+        return [{"agent": "not-an-agent"}]
+    supervisor = Supervisor(generator=malformed)
+    try:
+        supervisor.decompose(record().trip_request, "plan a trip")
+        assert False, "invalid output must not be accepted"
+    except SupervisorOutputError:
+        assert calls == 2
+
+
+def test_empty_result_is_recorded_as_a_retryable_gap():
+    async def transport(_: dict): return []
+    trip = asyncio.run(PlanningOrchestrator(agents={TaskAgent.TRANSPORTATION: transport}).run(record("find flights")))
+    assert trip.tasks[0].status is TaskStatus.FAILED
+    assert trip.errors[0].code == "missing_result"
+
+
+def test_change_request_reruns_only_named_domain():
+    calls = []
+    async def transport(_: dict): calls.append("transport"); return [{"id": "t1"}]
+    async def lodging(_: dict): calls.append("lodging"); return [{"id": "h1"}]
+    service = PlanningOrchestrator(agents={TaskAgent.TRANSPORTATION: transport, TaskAgent.ACCOMMODATION: lodging})
+    trip = record("find flights and hotel")
+    asyncio.run(service.run(trip))
+    asyncio.run(service.rerun_changed_domains(trip, "please find a cheaper hotel"))
     assert calls == ["transport", "lodging", "lodging"]

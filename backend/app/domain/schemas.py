@@ -45,7 +45,7 @@ class TripCreateRequest(BaseModel):
 class TripMessageRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     message: str = Field(min_length=1, max_length=8000)
-    request: TripRequest = Field(default_factory=TripRequest)
+    request: TripRequest | None = None
 
 
 class PlanningTask(BaseModel):

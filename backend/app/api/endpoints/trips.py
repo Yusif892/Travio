@@ -4,6 +4,7 @@ from fastapi import APIRouter, Header, HTTPException, status
 
 from app.domain.enums import IntakeStatus
 from app.domain.schemas import TripCreateRequest, TripMessageRequest, TripRecord, TripRequest, TripResponse
+from app.graph.workflow import run_planning_graph
 from app.services.guardrails import evaluate_intake
 from app.services.orchestration import planning_orchestrator
 from app.services.store import trip_store
@@ -13,7 +14,7 @@ router = APIRouter(prefix="/trips", tags=["trips"])
 
 def _merge_request(existing: TripRequest, update: TripRequest) -> TripRequest:
     """Only overwrite a value when the user supplied a new non-null value."""
-    return TripRequest(**{name: getattr(update, name) if getattr(update, name) is not None else getattr(existing, name)
+    return TripRequest(**{name: getattr(update, name) if name in update.model_fields_set and getattr(update, name) is not None else getattr(existing, name)
                           for name in TripRequest.model_fields})
 
 
@@ -30,7 +31,7 @@ async def create_trip(payload: TripCreateRequest) -> TripResponse:
         record.messages.append({"role": "user", "content": payload.message})
     decision = evaluate_intake(record.trip_request, payload.message)
     if decision.status is IntakeStatus.ACCEPTED:
-        await planning_orchestrator.run(record)
+        await run_planning_graph(record, planning_orchestrator)
     trip_store.create(record)
     return _response(record, decision)
 
@@ -42,13 +43,17 @@ async def continue_trip(trip_id: UUID, payload: TripMessageRequest,
     if not record:
         raise HTTPException(status_code=404, detail="Trip not found")
     record.messages.append({"role": "user", "content": payload.message})
-    record.trip_request = _merge_request(record.trip_request, payload.request)
+    if payload.request is not None:
+        record.trip_request = _merge_request(record.trip_request, payload.request)
     # The API accepts an optional structured patch alongside conversational
     # text; fields omitted from that patch never erase prior valid answers.
     decision = evaluate_intake(record.trip_request, payload.message)
     if decision.status is IntakeStatus.ACCEPTED:
-        # A resumed run only re-emits failed task identities. Successful task
-        # results stay in their owned state fields and are never recomputed.
-        await planning_orchestrator.run(record, retry_only=bool(record.tasks))
+        # Retry failures directly; otherwise map explicit feedback to only the
+        # named planning domain so successful unrelated results remain intact.
+        if any(task.status.value == "failed" for task in record.tasks):
+            await planning_orchestrator.run(record, retry_only=True)
+        elif record.tasks:
+            await planning_orchestrator.rerun_changed_domains(record, payload.message)
     trip_store.save(record)
     return _response(record, decision)

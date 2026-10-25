@@ -35,7 +35,8 @@ class PlanningOrchestrator:
                 task.status = TaskStatus.PENDING
         else:
             try:
-                selected = self.supervisor.decompose(record.trip_request, record.messages[-1]["content"] if record.messages else "")
+                intent = record.messages[-1]["content"] if record.messages else ""
+                selected = self.supervisor.decompose(record.trip_request, intent or "plan my complete trip")
                 record.tasks = selected
             except SupervisorOutputError as exc:
                 record.errors.append(WorkflowError(code="invalid_supervisor_output", message=str(exc)))
@@ -48,6 +49,22 @@ class PlanningOrchestrator:
         # each task has a dedicated output field, preventing cross-domain writes.
         await asyncio.gather(*(self._run_task(record, task) for task in selected))
         return record
+
+    async def rerun_changed_domains(self, record: TripRecord, feedback: str) -> TripRecord:
+        """Re-run only domains explicitly named by a resumed user request."""
+        try:
+            changed = self.supervisor.decompose(record.trip_request, feedback)
+        except SupervisorOutputError as exc:
+            record.errors.append(WorkflowError(code="invalid_supervisor_output", message=str(exc)))
+            return record
+        requested_agents = {task.agent for task in changed}
+        if not requested_agents:
+            return record
+        for task in record.tasks:
+            if task.agent in requested_agents:
+                task.status = TaskStatus.FAILED
+                task.failure_reason = "User requested an update to this domain"
+        return await self.run(record, retry_only=True)
 
     async def _run_task(self, record: TripRecord, task: PlanningTask) -> None:
         agent = self.agents.get(task.agent)
@@ -62,6 +79,16 @@ class PlanningOrchestrator:
             if not isinstance(result, list) or not all(isinstance(item, dict) for item in result):
                 raise ValueError("agent result must be a list of objects")
             setattr(record, OUTPUT_FIELD[task.agent], result)
+            if not result:
+                task.status = TaskStatus.FAILED
+                task.failure_reason = "Agent returned no results"
+                record.errors.append(WorkflowError(code="missing_result", message=task.failure_reason, task_id=task.id))
+                return
+            conflicts = _conflicting_option_ids(result)
+            if conflicts:
+                record.errors.append(WorkflowError(code="conflicting_result",
+                                                   message=f"Conflicting option ids: {', '.join(conflicts)}",
+                                                   task_id=task.id))
             task.status = TaskStatus.SUCCEEDED
             task.failure_reason = None
         except Exception as exc:  # retained as state, other parallel tasks continue
@@ -71,3 +98,17 @@ class PlanningOrchestrator:
 
 
 planning_orchestrator = PlanningOrchestrator()
+
+
+def _conflicting_option_ids(options: list[dict[str, Any]]) -> list[str]:
+    seen: dict[str, dict[str, Any]] = {}
+    conflicts: list[str] = []
+    for option in options:
+        option_id = option.get("id")
+        if not isinstance(option_id, str):
+            continue
+        previous = seen.get(option_id)
+        if previous is not None and previous != option and option_id not in conflicts:
+            conflicts.append(option_id)
+        seen[option_id] = option
+    return conflicts

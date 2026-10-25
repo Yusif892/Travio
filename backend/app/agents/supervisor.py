@@ -37,9 +37,14 @@ class Supervisor:
     def _default_tasks(message: str) -> list[dict]:
         text = message.casefold()
         domains: list[TaskAgent] = []
+        already_has_lodging = any(phrase in text for phrase in (
+            "already have a hotel", "already booked a hotel",
+            "already have accommodation", "already booked accommodation",
+            "hotel is booked", "accommodation is booked",
+        ))
         if any(word in text for word in ("flight", "flights", "transport", "train", "transfer")):
             domains.append(TaskAgent.TRANSPORTATION)
-        if any(word in text for word in ("hotel", "hotels", "accommodation", "lodging", "stay")):
+        if not already_has_lodging and any(word in text for word in ("hotel", "hotels", "accommodation", "lodging", "stay")):
             domains.append(TaskAgent.ACCOMMODATION)
         if any(word in text for word in ("activity", "activities", "experience", "experiences", "restaurant", "things to do")):
             domains.append(TaskAgent.EXPERIENCES)
