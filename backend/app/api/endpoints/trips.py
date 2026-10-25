@@ -30,8 +30,10 @@ async def create_trip(payload: TripCreateRequest) -> TripResponse:
     if payload.message:
         record.messages.append({"role": "user", "content": payload.message})
     decision = evaluate_intake(record.trip_request, payload.message)
+=======
     if decision.status is IntakeStatus.ACCEPTED:
         await run_planning_graph(record, planning_orchestrator)
+
     trip_store.create(record)
     return _response(record, decision)
 
@@ -48,6 +50,7 @@ async def continue_trip(trip_id: UUID, payload: TripMessageRequest,
     # The API accepts an optional structured patch alongside conversational
     # text; fields omitted from that patch never erase prior valid answers.
     decision = evaluate_intake(record.trip_request, payload.message)
+
     if decision.status is IntakeStatus.ACCEPTED:
         # Retry failures directly; otherwise map explicit feedback to only the
         # named planning domain so successful unrelated results remain intact.
@@ -55,5 +58,6 @@ async def continue_trip(trip_id: UUID, payload: TripMessageRequest,
             await planning_orchestrator.run(record, retry_only=True)
         elif record.tasks:
             await planning_orchestrator.rerun_changed_domains(record, payload.message)
+
     trip_store.save(record)
     return _response(record, decision)
