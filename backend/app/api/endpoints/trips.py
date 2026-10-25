@@ -30,7 +30,6 @@ async def create_trip(payload: TripCreateRequest) -> TripResponse:
     if payload.message:
         record.messages.append({"role": "user", "content": payload.message})
     decision = evaluate_intake(record.trip_request, payload.message)
-=======
     if decision.status is IntakeStatus.ACCEPTED:
         await run_planning_graph(record, planning_orchestrator)
 
