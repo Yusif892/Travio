@@ -5,6 +5,7 @@ from fastapi import APIRouter, Header, HTTPException, status
 from app.domain.enums import IntakeStatus
 from app.domain.schemas import TripCreateRequest, TripMessageRequest, TripRecord, TripRequest, TripResponse
 from app.services.guardrails import evaluate_intake
+from app.services.orchestration import planning_orchestrator
 from app.services.store import trip_store
 
 router = APIRouter(prefix="/trips", tags=["trips"])
@@ -28,9 +29,9 @@ async def create_trip(payload: TripCreateRequest) -> TripResponse:
     if payload.message:
         record.messages.append({"role": "user", "content": payload.message})
     decision = evaluate_intake(record.trip_request, payload.message)
+    if decision.status is IntakeStatus.ACCEPTED:
+        await planning_orchestrator.run(record)
     trip_store.create(record)
-    # Supervisor/agents are intentionally not called until the deterministic
-    # intake decision is accepted. Orchestration is added on branch two.
     return _response(record, decision)
 
 
@@ -45,5 +46,9 @@ async def continue_trip(trip_id: UUID, payload: TripMessageRequest,
     # The API accepts an optional structured patch alongside conversational
     # text; fields omitted from that patch never erase prior valid answers.
     decision = evaluate_intake(record.trip_request, payload.message)
+    if decision.status is IntakeStatus.ACCEPTED:
+        # A resumed run only re-emits failed task identities. Successful task
+        # results stay in their owned state fields and are never recomputed.
+        await planning_orchestrator.run(record, retry_only=bool(record.tasks))
     trip_store.save(record)
     return _response(record, decision)
